@@ -34,7 +34,7 @@ def pseudo_random_permutation(u, n):
     return random.sample(range(1, n+1), u)
 
 
-def global_setup(u, n, bits=512):
+def global_setup(u=16, n=128, bits=512):
     """全局设置算法"""
     q = generate_large_prime(bits)
     p = find_p_of_q(q)
@@ -48,7 +48,7 @@ def global_setup(u, n, bits=512):
 
 
 if __name__ == '__main__':
-    u = 10  # 伪随机数序列长度
-    n = 100  # 伪随机置换集合大小
+    u = 16  # 伪随机数序列长度
+    n = 128  # 伪随机置换集合大小
     public_params = global_setup(u, n, bits=64)
     print("Global public parameters(gpp):", public_params)
