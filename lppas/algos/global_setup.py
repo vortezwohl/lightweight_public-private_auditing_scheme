@@ -1,54 +1,54 @@
-import os
-import hashlib
+from sympy import nextprime, isprime
 import random
-
-from ecdsa.curves import SECP256k1
-
-'''
-算法: GlobalSetup (由可信第三方执行)
-输入: k (K 越大系统则越安全)
-输出: gpp (全局参数)
-步骤: 
-1. 选择素数和生成元
-选择两个大素数 p 和 q, 其中 p 是一个 k 位素数，q 是一个小于 p 的素数，且 p 除以 q 的余数为 1. 
-p 和 q 用于定义一个素数阶的有限字段 Fp
-2. 定义哈希函数
-定义一个哈希函数，用于将任意长输入映射到定长序列
-3. 定义伪随机函数和伪随机置换
-定义一个伪随机函数，它根据输入生成一个伪随机序列
-定义一个伪随机置换，它根据输入选择 n + 1 个元素的一个子集并生成这些元素的一个随机排列
-4. 发布全局公共参数 gpp
-'''
+import hashlib
 
 
-def hash_function(input_data: bytes):
-    """简单的哈希函数，使用SHA-256"""
-    return hashlib.sha256(input_data).hexdigest()
+def find_p_of_q(q: int):
+    """找到一个素数p，使得q|p-1"""
+    k = 1
+    while True:
+        p = k * q + 1
+        if isprime(p):
+            return p
+        k += 1
 
 
-def pseudo_random_function(seed, u):
-    """伪随机函数，基于给定的种子生成随机数序列"""
-    random.seed(seed)
-    return [random.randint(1, 100) for _ in range(u)]
+def generate_large_prime(bits: int, ith: int = 1):
+    """生成一个大素数"""
+    return nextprime(2**(bits-1), ith)
 
 
-class GlobalSetup:
-    def __init__(self, sec_param: int):
-        self.sec_param = sec_param
+def hash_function(_in: str):
+    """简单的哈希函数实现，使用SHA256"""
+    return int(hashlib.sha256(_in.encode()).hexdigest(), 16)
 
-    def setup(self) -> dict:
-        """全局设置算法，生成全局公共参数"""
-        # 生成大素数和生成元，这里使用ECDSA的SECP256k1曲线参数
-        p = SECP256k1.order
-        g = SECP256k1.generator
-        # 使用随机数作为哈希函数的输入，生成哈希基元
-        h = hash_function(os.urandom(32)).encode('utf-8')
-        # 安全参数决定伪随机函数输出的数量
-        rand = pseudo_random_function(hash_function(h), self.sec_param)
-        return {'p': p, 'g': g, 'h': h, 'rand': rand}
+
+def pseudo_random_function(t, u, q):
+    """伪随机函数，生成从t开始的u个伪随机数"""
+    random.seed(t)
+    return [random.randint(1, q-1) for _ in range(u)]
+
+
+def pseudo_random_permutation(u, n):
+    """伪随机置换，从1到n中选择u个数字并随机排列"""
+    return random.sample(range(1, n+1), u)
+
+
+def global_setup(u, n, bits=512):
+    """全局设置算法"""
+    q = generate_large_prime(bits)
+    p = find_p_of_q(q)
+    g = 2
+    while pow(g, q, p) != 1:
+        g += 1
+    t = 0
+    random_sequence = pseudo_random_function(t, u, q)
+    permutation = pseudo_random_permutation(u, n)
+    return p, q, g, hash_function, random_sequence, permutation
 
 
 if __name__ == '__main__':
-    # 假设安全参数为10, 执行全局设置
-    gpp = GlobalSetup(sec_param=10).setup()
-    print("Global Public Parameters:", gpp)
+    u = 10  # 伪随机数序列长度
+    n = 100  # 伪随机置换集合大小
+    public_params = global_setup(u, n, bits=64)
+    print("Global public parameters(gpp):", public_params)
